@@ -1,0 +1,21 @@
+# Compiled F# files
+*.dll
+*.exe
+*.pdb
+
+# F# project files
+obj/
+bin/
+*.suo
+*.user
+*.cache
+*.bak
+
+# Visual Studio files
+.vscode/
+.vs/
+.nuget/
+
+# Paket dependency files
+paket-files/
+paket-out/
