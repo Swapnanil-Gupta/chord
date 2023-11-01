@@ -22,3 +22,4 @@ paket-out/
 
 # csv output file
 result.csv
+.fake

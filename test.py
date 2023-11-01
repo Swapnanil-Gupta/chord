@@ -1,7 +1,7 @@
 import subprocess
 import csv
 
-num_nodes = [x*5 for x in range(1, 1000)]
+num_nodes = [x for x in range(500, 5000, 500)]
 req = 5
 output_csv = "result.csv"
 

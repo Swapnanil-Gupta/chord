@@ -93,7 +93,8 @@ let PrinterActor (mailbox: Actor<_>) =
 
                 if requestsCount = endCondition then 
                     let avgHopCount = float(hopCountSum)/float(requestsCount)
-                    printfn "\n ***** AVERAGE HOPCOUNT = %.2f" avgHopCount
+                    // printfn "\n ***** AVERAGE HOPCOUNT = %.2f" avgHopCount
+                    printfn "%.2f" avgHopCount
                     mailbox.Context.System.Terminate() |> ignore
             | _ -> ()
 
@@ -241,7 +242,7 @@ let ChordNode (myId:int) (mailbox:Actor<_>) =
                     tempKey <- Random().Next(1, int(hashSpace))
                     mailbox.Self <! KeyLookup(tempKey, 1, myId)
                     //printfn "\n %d req key = %d" myId tempKey
-                    System.Threading.Thread.Sleep(800)
+                    // System.Threading.Thread.Sleep(800)
             
 
             | FindNewNodeSuccessor(newId, seekerRef) ->
@@ -285,7 +286,7 @@ let MainActor (mailbox:Actor<_>) =
                 secondNodeRef <! Create(firstNodeId, firstNodeRef)
 
                 for x in 3..numNodes do
-                    System.Threading.Thread.Sleep(300)
+                    // System.Threading.Thread.Sleep(300)
                     //tempNodeId <- Random().Next(1, hashSpace)
                     tempNodeId <- [ 1 .. hashSpace ]
                         |> List.filter (fun x -> (not (list.Contains(x))))
@@ -296,7 +297,7 @@ let MainActor (mailbox:Actor<_>) =
                     firstNodeRef <! FindNewNodeSuccessor(tempNodeId, tempNodeRef)  
                 
                 printfn "\n Ring stabilized"
-                System.Threading.Thread.Sleep(8000)
+                System.Threading.Thread.Sleep(100)
                 firstNodeRef <! StartLookups(numRequests)
 
             | _ -> ()
