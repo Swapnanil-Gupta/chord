@@ -19,3 +19,6 @@ bin/
 # Paket dependency files
 paket-files/
 paket-out/
+
+# csv output file
+result.csv
