@@ -52,14 +52,14 @@ let mutable hashSpace = pown 2 m
 let updateElement index element list = 
   list |> List.mapi (fun i v -> if i = index then element else v)
 
-type FingerTableEntry(x:int, y:IActorRef) as this =
+type FingerTableEntry(x:int, y:IActorRef) =
     let id = x
     let idRef = y
     member this.GetId() = x
     member this.GetRef() = y
 
 let GetHashNumber data =
-    use sha1Hash = SHA1Managed.Create()
+    use sha1Hash = SHA1.Create()
     let mutable hash = sha1Hash.ComputeHash(Encoding.UTF8.GetBytes(data:string):byte[]) |> bigint
     if hash.Sign = -1 then
         hash <- bigint.Negate(hash)
