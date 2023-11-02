@@ -20,10 +20,10 @@ module LoggerModule =
                 | FoundKey hopCount ->
                     totalHopCount <- totalHopCount + hopCount
                     totalRequests <- totalRequests + 1
-                    printfn "\n %d FoundKey = %d" totalRequests hopCount
+                    printfn "Request no.: %d, Hop Count: %d" totalRequests hopCount
                     if totalRequests = ConfigModule.completionThreshold then 
                         let averageHopCount = float(totalHopCount) / float(totalRequests)
-                        printfn "%.2f" averageHopCount
+                        printfn "Average Hop count: %.2f" averageHopCount
                         actorMailbox.Context.System.Terminate() |> ignore
                 return! processMessages()
             }

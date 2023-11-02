@@ -6,8 +6,6 @@ module ConfigModule =
     let mutable completionThreshold = 0 
     let stabilizationInterval = 100.0
     let fingerTableUpdateInterval = 300.0
-
-
     let akkaConfiguration = 
         ConfigurationFactory.ParseString(
             @"akka {            

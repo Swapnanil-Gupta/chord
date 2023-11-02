@@ -24,27 +24,29 @@ module ProgramModule =
                 match message with 
                 | StartAlgorithm(numNodes, numRequests) ->
                     ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
-                    printfn "\n\n ADDING %d" ChordNodeModule.firstNodeId
-                    firstNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNode.ChordNodeModule.firstNodeId) (ChordNode.ChordNodeModule.ChordNode ChordNode.ChordNodeModule.firstNodeId)
+                    printfn "Added node 1 with ID: %d" ChordNodeModule.firstNodeId
+                    firstNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNodeModule.firstNodeId) (ChordNodeModule.ChordNode ChordNode.ChordNodeModule.firstNodeId)
                     // Second Node
                     secondNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
-                    printfn "\n\n ADDING %d" secondNodeId
-                    secondNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" secondNodeId) (ChordNode.ChordNodeModule.ChordNode secondNodeId)
+                    printfn "Added node 2 with ID: %d" secondNodeId
+                    secondNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" secondNodeId) (ChordNodeModule.ChordNode secondNodeId)
                     firstNodeReference <! Create(secondNodeId, secondNodeReference)
                     secondNodeReference <! Create(ChordNodeModule.firstNodeId, firstNodeReference)
 
-                    for x in 3..numNodes do
+                    for i in 3..numNodes do
                         // System.Threading.Thread.Sleep(300)
                         //tempNodeId <- Random().Next(1, hashSpace)
                         tempNodeId <- [ 1 .. ChordNodeModule.hashSpace ]
                             |> List.filter (fun x -> (not (list.Contains(x))))
                             |> fun y -> y.[Random().Next(y.Length - 1)]
                         list.Add(tempNodeId)
-                        printfn "\n\n%d ADDING %d" x tempNodeId
-                        tempNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" tempNodeId) (ChordNode.ChordNodeModule.ChordNode tempNodeId)
+                        printfn "Added node %d with ID: %d" i tempNodeId
+                        tempNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" tempNodeId) (ChordNodeModule.ChordNode tempNodeId)
                         firstNodeReference <! FindNewNodeSuccessor(tempNodeId, tempNodeRef)  
                     
-                    printfn "\n Ring stabilized"
+                    printfn "---------------------------------"
+                    printfn "Ring formation completed"
+                    printfn "---------------------------------"
                     System.Threading.Thread.Sleep(100)
                     firstNodeReference <! StartLookups(numRequests)
 
