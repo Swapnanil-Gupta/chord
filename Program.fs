@@ -8,13 +8,14 @@ open ConfigModule
 
 module ProgramModule = 
 
-    let mutable mainActorRef = null
-    let mutable firstNodeReference = null
-    let mutable secondNodeReference = null
+    let mutable primaryActorReference = null
+    let mutable initialNodeRef = null
+    let mutable subsequentNodeRef = null
     let MainActor (mailbox:Actor<_>) =    
-        let mutable secondNodeId = 0
-        let mutable tempNodeId = 0
-        let mutable tempNodeRef = null
+
+        let mutable nodeTwoId = 0
+        let mutable temporaryNodeId = 0
+        let mutable temporaryNodeRef = null
         let list = new List<int>()
 
         let rec loop () = 
@@ -25,28 +26,28 @@ module ProgramModule =
                 | StartAlgorithm(numNodes, numRequests) ->
                     ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
                     printfn "\n\n ADDING %d" ChordNodeModule.firstNodeId
-                    firstNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNode.ChordNodeModule.firstNodeId) (ChordNode.ChordNodeModule.ChordNode ChordNode.ChordNodeModule.firstNodeId)
+                    initialNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNode.ChordNodeModule.firstNodeId) (ChordNode.ChordNodeModule.ChordNode ChordNode.ChordNodeModule.firstNodeId)
                     // Second Node
-                    secondNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
-                    printfn "\n\n ADDING %d" secondNodeId
-                    secondNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" secondNodeId) (ChordNode.ChordNodeModule.ChordNode secondNodeId)
-                    firstNodeReference <! Create(secondNodeId, secondNodeReference)
-                    secondNodeReference <! Create(ChordNodeModule.firstNodeId, firstNodeReference)
+                    nodeTwoId <- Random().Next(int(ChordNodeModule.hashSpace))
+                    printfn "\n\n ADDING %d" nodeTwoId
+                    subsequentNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" nodeTwoId) (ChordNode.ChordNodeModule.ChordNode nodeTwoId)
+                    initialNodeRef <! Create(nodeTwoId, subsequentNodeRef)
+                    subsequentNodeRef <! Create(ChordNodeModule.firstNodeId, initialNodeRef)
 
-                    for x in 3..numNodes do
+                    for item in 3..numNodes do
                         // System.Threading.Thread.Sleep(300)
                         //tempNodeId <- Random().Next(1, hashSpace)
-                        tempNodeId <- [ 1 .. ChordNodeModule.hashSpace ]
-                            |> List.filter (fun x -> (not (list.Contains(x))))
+                        temporaryNodeId <- [ 1 .. ChordNodeModule.hashSpace ]
+                            |> List.filter (fun x -> (not (list.Contains(item))))
                             |> fun y -> y.[Random().Next(y.Length - 1)]
-                        list.Add(tempNodeId)
-                        printfn "\n\n%d ADDING %d" x tempNodeId
-                        tempNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" tempNodeId) (ChordNode.ChordNodeModule.ChordNode tempNodeId)
-                        firstNodeReference <! FindNewNodeSuccessor(tempNodeId, tempNodeRef)  
+                        list.Add(temporaryNodeId)
+                        printfn "\n\n%d ADDING %d" item temporaryNodeId
+                        temporaryNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" temporaryNodeId) (ChordNode.ChordNodeModule.ChordNode temporaryNodeId)
+                        initialNodeRef <! FindNewNodeSuccessor(temporaryNodeId, temporaryNodeRef)  
                     
                     printfn "\n Ring stabilized"
                     System.Threading.Thread.Sleep(100)
-                    firstNodeReference <! StartLookups(numRequests)
+                    initialNodeRef <! StartLookups(numRequests)
 
                 | _ -> ()
 
@@ -60,7 +61,7 @@ module ProgramModule =
         let numberOfNodes =  argv.[0] |> int
         let numberOfRequests = argv.[1] |> int
         ConfigModule.completionThreshold <- numberOfNodes * numberOfRequests
-        mainActorRef <- spawn ChordNodeModule.chordSystem "MainActor" MainActor
-        mainActorRef <! StartAlgorithm(numberOfNodes, numberOfRequests)
+        primaryActorReference <- spawn ChordNodeModule.chordSystem "MainActor" MainActor
+        primaryActorReference <! StartAlgorithm(numberOfNodes, numberOfRequests)
         ChordNode.ChordNodeModule.chordSystem.WhenTerminated.Wait();
         0
