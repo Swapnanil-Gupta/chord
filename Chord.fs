@@ -13,19 +13,19 @@ type FingerTableEntry(x:int, y:IActorRef) =
     member this.GetRef() = y
 
 type MainCommands =
-    | StartAlgorithm of (int*int)
-    | Create of (int*IActorRef)
-    | Notify of (int*IActorRef)
+    | StartRingFormation of (int*int)
+    | Initilize of (int*IActorRef)
+    | Intimate of (int*IActorRef)
     | Stabilize
     | FindNewNodeSuccessor of (int*IActorRef)
     | FoundNewNodeSuccessor of (int*IActorRef)
     | PredecessorRequest
     | PredecessorResponse of (int*IActorRef)
     | KeyLookup of (int*int*int)
-    | FixFingers
+    | UpdateFingers
     | FindithSuccessor of (int*int*IActorRef)
     | FoundFingerEntry of (int*int*IActorRef)
-    | StartLookups of (int)
+    | InitiateLookups of (int)
 
 module ChordNodeModule = 
     let mutable numberOfNodes = 0
@@ -52,7 +52,7 @@ module ChordNodeModule =
                 match message with 
                 // Initializes node's successor and predecessor with the given ID and reference, and populates the finger table.
                 // Sets up recurring stabilization and finger table maintenance tasks for the Chord protocol.
-                | Create (otherId, otherRef) ->
+                | Initilize (otherId, otherRef) ->
                     // First two nodes in the Chord Ring
                     mySuccessor <- otherId
                     myPredecessor <- otherId
@@ -62,15 +62,15 @@ module ChordNodeModule =
                         let tuple = FingerTableEntry(mySuccessor, mySuccessorRef)
                         myFingerTable.[i] <- tuple
                     chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.stabilizationInterval), mailbox.Self, Stabilize)
-                    chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.fingerTableUpdateInterval), mailbox.Self, FixFingers)
+                    chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.fingerTableUpdateInterval), mailbox.Self, UpdateFingers)
 
                 // Update the node's predecessor info for Chord ring maintenance on node changes.
-                | Notify(predecessorId, predecessorRef) ->
+                | Intimate(predecessorId, predecessorRef) ->
                     myPredecessor <- predecessorId
                     myPredecessorRef <- predecessorRef
 
                 // Periodically refreshes entries in the finger table to ensure accurate lookup.
-                | FixFingers ->
+                | UpdateFingers ->
                     let mutable ithFinger = 0
                     for i in 1..maxLengthOfTable-1 do
                         ithFinger <- ( myId + ( pown 2 i ) ) % int(spaceSize)
@@ -117,7 +117,7 @@ module ChordNodeModule =
                         mySuccessor <- predecessorOfSuccessor
                         mySuccessorRef <- itsRef
                     // Notify mysuccessor
-                    mySuccessorRef <! Notify(myId, mailbox.Self)
+                    mySuccessorRef <! Intimate(myId, mailbox.Self)
                     
                  // Responds to a request for the current node's predecessor by sending back the predecessor's ID and reference.
                 | PredecessorRequest->    
@@ -131,8 +131,8 @@ module ChordNodeModule =
                         let tuple = FingerTableEntry(mySuccessor, mySuccessorRef)
                         myFingerTable.[i] <- tuple
                     chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromMilliseconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.stabilizationInterval), mailbox.Self, Stabilize)
-                    chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromMilliseconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.fingerTableUpdateInterval), mailbox.Self, FixFingers)
-                    mySuccessorRef <! Notify(myId, mailbox.Self)
+                    chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromMilliseconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.fingerTableUpdateInterval), mailbox.Self, UpdateFingers)
+                    mySuccessorRef <! Intimate(myId, mailbox.Self)
             
                 // Initiates or continues a key lookup process within the Chord ring, incrementing the hop count as it traverses nodes.
                 | KeyLookup(key, hopCount, initiatedBy) ->
@@ -160,10 +160,10 @@ module ChordNodeModule =
                         done 
 
                  // Triggers a series of key lookup operations to simulate usage of the Chord distributed hash table.
-                | StartLookups(numRequests) ->
+                | InitiateLookups(numRequests) ->
                     let mutable tempKey = 0
                     if mySuccessor <> firstNodeId then 
-                        mySuccessorRef <! StartLookups(numRequests)
+                        mySuccessorRef <! InitiateLookups(numRequests)
                     for x in 1..numRequests do
                         tempKey <- Random().Next(1, int(spaceSize))
                         mailbox.Self <! KeyLookup(tempKey, 1, myId)
