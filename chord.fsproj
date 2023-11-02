@@ -6,6 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+  <Compile Include="Config.fs" />
+    <Compile Include="Logger.fs" />
+    <Compile Include="Chord.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
