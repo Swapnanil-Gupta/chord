@@ -34,7 +34,7 @@ module ChordNodeModule =
     let mutable firstNodeId = 0
     let mutable spaceSize = pown 2 maxLengthOfTable
     let chordSystem = ActorSystem.Create("ChordSystem", ConfigModule.akkaConfiguration)
-    let printerRef = spawn chordSystem "logActor" LoggerModule.logActor
+    let logger = spawn chordSystem "logActor" LoggerModule.logActor
 
     let ChordNode (myId:int) (mailbox:Actor<_>) =    
         let mutable mySuccessor = 0
@@ -50,6 +50,8 @@ module ChordNodeModule =
                 let sender = mailbox.Sender()
 
                 match message with 
+                // Initializes node's successor and predecessor with the given ID and reference, and populates the finger table.
+                // Sets up recurring stabilization and finger table maintenance tasks for the Chord protocol.
                 | Create (otherId, otherRef) ->
                     // First two nodes in the Chord Ring
                     mySuccessor <- otherId
@@ -62,16 +64,19 @@ module ChordNodeModule =
                     chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.stabilizationInterval), mailbox.Self, Stabilize)
                     chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.fingerTableUpdateInterval), mailbox.Self, FixFingers)
 
+                // Update the node's predecessor info for Chord ring maintenance on node changes.
                 | Notify(predecessorId, predecessorRef) ->
                     myPredecessor <- predecessorId
                     myPredecessorRef <- predecessorRef
 
+                // Periodically refreshes entries in the finger table to ensure accurate lookup.
                 | FixFingers ->
                     let mutable ithFinger = 0
                     for i in 1..maxLengthOfTable-1 do
                         ithFinger <- ( myId + ( pown 2 i ) ) % int(spaceSize)
                         mailbox.Self <! FindithSuccessor(i, ithFinger, mailbox.Self)
 
+                // Locates the successor for the ith entry in the finger table and notifies the inquiring node.
                 | FindithSuccessor(i, key, tellRef) ->
                     if mySuccessor < myId && (key > myId || key < mySuccessor) then
                         tellRef <! FoundFingerEntry(i, mySuccessor, mySuccessorRef)
@@ -96,14 +101,17 @@ module ChordNodeModule =
                                     stop <- true                       
                         done                 
 
+                // Updates the ith entry of the finger table with the provided successor node information.
                 | FoundFingerEntry(i, fingerId, fingerRef) ->
                     let tuple = FingerTableEntry(fingerId, fingerRef)
                     myFingerTable.[i] <- tuple
 
+                // Initiates the stabilization process by requesting the predecessor information from the current node's successor.
                 | Stabilize ->
                     if mySuccessor <> 0 then 
                         mySuccessorRef <! PredecessorRequest
 
+                // Processes the response containing the successor's predecessor info and updates the current node's successor if needed.
                 | PredecessorResponse(predecessorOfSuccessor, itsRef) ->                    
                     if predecessorOfSuccessor <> myId then
                         mySuccessor <- predecessorOfSuccessor
@@ -111,29 +119,27 @@ module ChordNodeModule =
                     // Notify mysuccessor
                     mySuccessorRef <! Notify(myId, mailbox.Self)
                     
+                 // Responds to a request for the current node's predecessor by sending back the predecessor's ID and reference.
                 | PredecessorRequest->    
                     sender <! PredecessorResponse(myPredecessor, myPredecessorRef)
 
+                // Sets the successor for a new node in the network and initializes its finger table, also schedules periodic stabilization and finger table fix tasks.
                 | FoundNewNodeSuccessor(isId, isRef) ->
-                    // Update successor information of self
                     mySuccessor <- isId
                     mySuccessorRef <- isRef
-                    // populate fingertable entry with successor - it will get corrected in next FixFingers call
                     for i in 0..maxLengthOfTable-1 do
                         let tuple = FingerTableEntry(mySuccessor, mySuccessorRef)
                         myFingerTable.[i] <- tuple
-                    // start Stabilize scheduler
                     chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromMilliseconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.stabilizationInterval), mailbox.Self, Stabilize)
-                    // start FixFingers scheduler
                     chordSystem.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromMilliseconds(0.0),TimeSpan.FromMilliseconds(ConfigModule.fingerTableUpdateInterval), mailbox.Self, FixFingers)
-                    // Notify Successor
                     mySuccessorRef <! Notify(myId, mailbox.Self)
             
+                // Initiates or continues a key lookup process within the Chord ring, incrementing the hop count as it traverses nodes.
                 | KeyLookup(key, hopCount, initiatedBy) ->
                     if mySuccessor < myId && (key > myId || key <= mySuccessor) then
-                        printerRef <! HopCount(hopCount)
+                        logger <! HopCount(hopCount)
                     elif key <= mySuccessor && key > myId then
-                        printerRef <! HopCount(hopCount)
+                        logger <! HopCount(hopCount)
                     else
                         let mutable loop = true 
                         let mutable size = maxLengthOfTable
@@ -152,7 +158,8 @@ module ChordNodeModule =
                                     ithRef <! KeyLookup(key, hopCount + 1, initiatedBy)
                                     loop <- false                       
                         done 
-                    
+
+                 // Triggers a series of key lookup operations to simulate usage of the Chord distributed hash table.
                 | StartLookups(numRequests) ->
                     let mutable tempKey = 0
                     if mySuccessor <> firstNodeId then 
@@ -160,7 +167,8 @@ module ChordNodeModule =
                     for x in 1..numRequests do
                         tempKey <- Random().Next(1, int(spaceSize))
                         mailbox.Self <! KeyLookup(tempKey, 1, myId)
-                
+
+                // This method locates the successor of a new node in the Chord ring and notifies the node that sought this information.
                 | FindNewNodeSuccessor(newId, seekerRef) ->
                     if mySuccessor < myId && (newId > myId || newId < mySuccessor) then 
                         seekerRef <! FoundNewNodeSuccessor(mySuccessor, mySuccessorRef)
