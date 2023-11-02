@@ -23,12 +23,12 @@ module ProgramModule =
                 match message with 
                 | StartAlgorithm(numNodes, numRequests) ->
                     // create the first node
-                    ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
+                    ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.spaceSize))
                     printfn "Added node 1 with ID: %d" ChordNodeModule.firstNodeId
                     initialNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNodeModule.firstNodeId) (ChordNodeModule.ChordNode ChordNodeModule.firstNodeId)
                     
                     // create the second node
-                    nodeTwoId <- Random().Next(int(ChordNodeModule.hashSpace))
+                    nodeTwoId <- Random().Next(int(ChordNodeModule.spaceSize))
                     printfn "Added node 2 with ID: %d" nodeTwoId
                     subsequentNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" nodeTwoId) (ChordNodeModule.ChordNode nodeTwoId)
                     initialNodeRef <! Create(nodeTwoId, subsequentNodeRef)
@@ -36,7 +36,7 @@ module ProgramModule =
 
                     // loop and create the rest of the nodes
                     for item in 3..numNodes do
-                        temporaryNodeId <- [ 1 .. ChordNodeModule.hashSpace ]
+                        temporaryNodeId <- [ 1 .. ChordNodeModule.spaceSize ]
                             |> List.filter (fun x -> (not (list.Contains(item))))
                             |> fun y -> y.[Random().Next(y.Length - 1)]
                         list.Add(temporaryNodeId)

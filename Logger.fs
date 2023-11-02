@@ -5,7 +5,7 @@ open ConfigModule
 open System.Threading
 
 type MainCommands =
-    | FoundKey of (int)
+    | HopCount of (int)
 
 module LoggerModule =
     let logActor (actorMailbox: Actor<_>) =
@@ -16,7 +16,7 @@ module LoggerModule =
             actor {
                 let! message = actorMailbox.Receive()
                 match message with
-                | FoundKey hopCount ->
+                | HopCount hopCount ->
                     // count the toal number of requests and hop counts
                     totalHopCount <- totalHopCount + hopCount
                     totalRequests <- totalRequests + 1

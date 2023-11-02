@@ -5,7 +5,6 @@ open Akka.Actor
 open Akka.FSharp
 open LoggerModule
 open ConfigModule
-open System.Threading
 
 type FingerTableEntry(x:int, y:IActorRef) =
     let id = x
@@ -33,7 +32,7 @@ module ChordNodeModule =
     let mutable numberOfRequests = 0
     let mutable maxLengthOfTable = 20
     let mutable firstNodeId = 0
-    let mutable hashSpace = pown 2 maxLengthOfTable
+    let mutable spaceSize = pown 2 maxLengthOfTable
     let chordSystem = ActorSystem.Create("ChordSystem", ConfigModule.akkaConfiguration)
     let printerRef = spawn chordSystem "logActor" LoggerModule.logActor
 
@@ -70,7 +69,7 @@ module ChordNodeModule =
                 | FixFingers ->
                     let mutable ithFinger = 0
                     for i in 1..maxLengthOfTable-1 do
-                        ithFinger <- ( myId + ( pown 2 i ) ) % int(hashSpace)
+                        ithFinger <- ( myId + ( pown 2 i ) ) % int(spaceSize)
                         mailbox.Self <! FindithSuccessor(i, ithFinger, mailbox.Self)
 
                 | FindithSuccessor(i, key, tellRef) ->
@@ -79,22 +78,22 @@ module ChordNodeModule =
                     elif key <= mySuccessor && key > myId then 
                         tellRef <! FoundFingerEntry(i, mySuccessor, mySuccessorRef)
                     else 
-                        let mutable Break = false 
-                        let mutable x = maxLengthOfTable
+                        let mutable stop = false 
+                        let mutable size = maxLengthOfTable
                         let mutable tempVal = key
                         if myId > key then 
-                            tempVal <- key + hashSpace
-                        while not Break do
-                            x <- x - 1
-                            if x < 0 then   
+                            tempVal <- key + spaceSize
+                        while not stop do
+                            size <- size - 1
+                            if size < 0 then   
                                 mySuccessorRef <! FindithSuccessor(i, key, tellRef)
-                                Break <- true
+                                stop <- true
                             else
-                                let ithFinger = myFingerTable.[x].GetId()
+                                let ithFinger = myFingerTable.[size].GetId()
                                 if (ithFinger > myId && ithFinger <= tempVal) then 
-                                    let ithRef = myFingerTable.[x].GetRef()
+                                    let ithRef = myFingerTable.[size].GetRef()
                                     ithRef <! FindithSuccessor(i, key, tellRef)
-                                    Break <- true                       
+                                    stop <- true                       
                         done                 
 
                 | FoundFingerEntry(i, fingerId, fingerRef) ->
@@ -132,24 +131,24 @@ module ChordNodeModule =
             
                 | KeyLookup(key, hopCount, initiatedBy) ->
                     if mySuccessor < myId && (key > myId || key <= mySuccessor) then
-                        printerRef <! FoundKey(hopCount)
+                        printerRef <! HopCount(hopCount)
                     elif key <= mySuccessor && key > myId then
-                        printerRef <! FoundKey(hopCount)
+                        printerRef <! HopCount(hopCount)
                     else
                         let mutable loop = true 
-                        let mutable x = maxLengthOfTable
-                        let mutable tempVal = key
+                        let mutable size = maxLengthOfTable
+                        let mutable value = key
                         if myId > key then 
-                            tempVal <- key + hashSpace
+                            value <- key + spaceSize
                         while loop do
-                            x <- x - 1
-                            if x < 0 then   
+                            size <- size - 1
+                            if size < 0 then   
                                 mySuccessorRef <! KeyLookup(key, hopCount + 1, initiatedBy)
                                 loop <- false
                             else
-                                let ithFinger = myFingerTable.[x].GetId()
-                                if (ithFinger > myId && ithFinger <= tempVal) then 
-                                    let ithRef = myFingerTable.[x].GetRef()
+                                let ithFinger = myFingerTable.[size].GetId()
+                                if (ithFinger > myId && ithFinger <= value) then 
+                                    let ithRef = myFingerTable.[size].GetRef()
                                     ithRef <! KeyLookup(key, hopCount + 1, initiatedBy)
                                     loop <- false                       
                         done 
@@ -159,7 +158,7 @@ module ChordNodeModule =
                     if mySuccessor <> firstNodeId then 
                         mySuccessorRef <! StartLookups(numRequests)
                     for x in 1..numRequests do
-                        tempKey <- Random().Next(1, int(hashSpace))
+                        tempKey <- Random().Next(1, int(spaceSize))
                         mailbox.Self <! KeyLookup(tempKey, 1, myId)
                 
                 | FindNewNodeSuccessor(newId, seekerRef) ->
