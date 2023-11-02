@@ -5,6 +5,7 @@ open Akka.Actor
 open Akka.FSharp
 open LoggerModule
 open ConfigModule
+open System.Threading
 
 type FingerTableEntry(x:int, y:IActorRef) =
     let id = x
@@ -135,22 +136,22 @@ module ChordNodeModule =
                     elif key <= mySuccessor && key > myId then
                         printerRef <! FoundKey(hopCount)
                     else
-                        let mutable Break = false 
+                        let mutable loop = true 
                         let mutable x = maxLengthOfTable
                         let mutable tempVal = key
                         if myId > key then 
                             tempVal <- key + hashSpace
-                        while not Break do
+                        while loop do
                             x <- x - 1
                             if x < 0 then   
                                 mySuccessorRef <! KeyLookup(key, hopCount + 1, initiatedBy)
-                                Break <- true
+                                loop <- false
                             else
                                 let ithFinger = myFingerTable.[x].GetId()
                                 if (ithFinger > myId && ithFinger <= tempVal) then 
                                     let ithRef = myFingerTable.[x].GetRef()
                                     ithRef <! KeyLookup(key, hopCount + 1, initiatedBy)
-                                    Break <- true                       
+                                    loop <- false                       
                         done 
                     
                 | StartLookups(numRequests) ->

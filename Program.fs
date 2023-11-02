@@ -3,52 +3,54 @@
 open System
 open Akka.FSharp
 open System.Collections.Generic
+open System.Threading
 open ChordNode
 open ConfigModule
 
 module ProgramModule = 
-
-    let mutable mainActorRef = null
-    let mutable firstNodeReference = null
-    let mutable secondNodeReference = null
+    let mutable primaryActorReference = null
+    let mutable initialNodeRef = null
+    let mutable subsequentNodeRef = null
     let MainActor (mailbox:Actor<_>) =    
-        let mutable secondNodeId = 0
-        let mutable tempNodeId = 0
-        let mutable tempNodeRef = null
+        let mutable nodeTwoId = 0
+        let mutable temporaryNodeId = 0
+        let mutable temporaryNodeRef = null
         let list = new List<int>()
 
         let rec loop () = 
             actor {
                 let! (message) = mailbox.Receive()
-
                 match message with 
                 | StartAlgorithm(numNodes, numRequests) ->
+                    // create the first node
                     ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
                     printfn "Added node 1 with ID: %d" ChordNodeModule.firstNodeId
-                    firstNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNodeModule.firstNodeId) (ChordNodeModule.ChordNode ChordNode.ChordNodeModule.firstNodeId)
-                    // Second Node
-                    secondNodeId <- Random().Next(int(ChordNodeModule.hashSpace))
-                    printfn "Added node 2 with ID: %d" secondNodeId
-                    secondNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" secondNodeId) (ChordNodeModule.ChordNode secondNodeId)
-                    firstNodeReference <! Create(secondNodeId, secondNodeReference)
-                    secondNodeReference <! Create(ChordNodeModule.firstNodeId, firstNodeReference)
+                    initialNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNodeModule.firstNodeId) (ChordNodeModule.ChordNode ChordNodeModule.firstNodeId)
+                    
+                    // create the second node
+                    nodeTwoId <- Random().Next(int(ChordNodeModule.hashSpace))
+                    printfn "Added node 2 with ID: %d" nodeTwoId
+                    subsequentNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" nodeTwoId) (ChordNodeModule.ChordNode nodeTwoId)
+                    initialNodeRef <! Create(nodeTwoId, subsequentNodeRef)
+                    subsequentNodeRef <! Create(ChordNodeModule.firstNodeId, initialNodeRef)
 
-                    for i in 3..numNodes do
-                        // System.Threading.Thread.Sleep(300)
-                        //tempNodeId <- Random().Next(1, hashSpace)
-                        tempNodeId <- [ 1 .. ChordNodeModule.hashSpace ]
-                            |> List.filter (fun x -> (not (list.Contains(x))))
+                    // loop and create the rest of the nodes
+                    for item in 3..numNodes do
+                        temporaryNodeId <- [ 1 .. ChordNodeModule.hashSpace ]
+                            |> List.filter (fun x -> (not (list.Contains(item))))
                             |> fun y -> y.[Random().Next(y.Length - 1)]
-                        list.Add(tempNodeId)
-                        printfn "Added node %d with ID: %d" i tempNodeId
-                        tempNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" tempNodeId) (ChordNodeModule.ChordNode tempNodeId)
-                        firstNodeReference <! FindNewNodeSuccessor(tempNodeId, tempNodeRef)  
+                        list.Add(temporaryNodeId)
+                        printfn "Added node %d with ID: %d" item temporaryNodeId
+                        temporaryNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" temporaryNodeId) (ChordNodeModule.ChordNode temporaryNodeId)
+                        initialNodeRef <! FindNewNodeSuccessor(temporaryNodeId, temporaryNodeRef)  
                     
                     printfn "---------------------------------"
                     printfn "Ring formation completed"
                     printfn "---------------------------------"
-                    System.Threading.Thread.Sleep(100)
-                    firstNodeReference <! StartLookups(numRequests)
+                    Thread.Sleep(100)
+
+                    // initiate the lookups and requests
+                    initialNodeRef <! StartLookups(numRequests)
 
                 | _ -> ()
 
@@ -59,10 +61,20 @@ module ProgramModule =
 
     [<EntryPoint>]
     let main argv =
+        // parse command line arguments
+        // and read number of nodes and number of requests
         let numberOfNodes =  argv.[0] |> int
         let numberOfRequests = argv.[1] |> int
+        
+        if numberOfNodes < 2 then
+            printfn "A single node cannot form a ring. Terminating."
+            Environment.Exit(-1)
+
+        // spawn the main actor and start the ring formation
         ConfigModule.completionThreshold <- numberOfNodes * numberOfRequests
-        mainActorRef <- spawn ChordNodeModule.chordSystem "MainActor" MainActor
-        mainActorRef <! StartAlgorithm(numberOfNodes, numberOfRequests)
-        ChordNode.ChordNodeModule.chordSystem.WhenTerminated.Wait();
+        primaryActorReference <- spawn ChordNodeModule.chordSystem "MainActor" MainActor
+        primaryActorReference <! StartAlgorithm(numberOfNodes, numberOfRequests)
+        
+        // wait till the chord system terminates
+        ChordNodeModule.chordSystem.WhenTerminated.Wait();
         0
