@@ -22,7 +22,7 @@ module ProgramModule =
                 let! (message) = mailbox.Receive()
                 match message with 
                 | StartRingFormation(numNodes, numRequests) ->
-                    // create the first node
+                    // create the first node in the ring
                     ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.spaceSize))
                     printfn "Added node 1 with ID: %d" ChordNodeModule.firstNodeId
                     initialNodeReference <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNodeModule.firstNodeId) (ChordNodeModule.ChordNode ChordNodeModule.firstNodeId)
