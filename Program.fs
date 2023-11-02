@@ -22,19 +22,19 @@ module ProgramModule =
                 let! (message) = mailbox.Receive()
                 match message with 
                 | StartAlgorithm(numNodes, numRequests) ->
-                    // create the first node
+                    // create the first node in the ring
                     ChordNodeModule.firstNodeId <- Random().Next(int(ChordNodeModule.spaceSize))
                     printfn "Added node 1 with ID: %d" ChordNodeModule.firstNodeId
                     initialNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" ChordNodeModule.firstNodeId) (ChordNodeModule.ChordNode ChordNodeModule.firstNodeId)
                     
-                    // create the second node
+                    // create the second node in the ring
                     nodeTwoId <- Random().Next(int(ChordNodeModule.spaceSize))
                     printfn "Added node 2 with ID: %d" nodeTwoId
                     subsequentNodeRef <- spawn ChordNodeModule.chordSystem (sprintf "%d" nodeTwoId) (ChordNodeModule.ChordNode nodeTwoId)
                     initialNodeRef <! Create(nodeTwoId, subsequentNodeRef)
                     subsequentNodeRef <! Create(ChordNodeModule.firstNodeId, initialNodeRef)
 
-                    // loop and create the rest of the nodes
+                    // loop and create the rest of the nodes in the ring
                     for item in 3..numNodes do
                         temporaryNodeId <- [ 1 .. ChordNodeModule.spaceSize ]
                             |> List.filter (fun x -> (not (list.Contains(item))))
